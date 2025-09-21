@@ -1,6 +1,8 @@
 package com.MarketPulse.Market_data_service.Controller;
 
 
+import com.MarketPulse.Market_data_service.Entity.UserProfile;
+import com.MarketPulse.Market_data_service.Service.UserDataExpiryService;
 import com.upstox.ApiClient;
 import com.upstox.ApiException;
 import com.upstox.Configuration;
@@ -10,7 +12,6 @@ import com.upstox.api.TokenResponse;
 import com.upstox.auth.OAuth;
 import io.swagger.client.api.LoginApi;
 import io.swagger.client.api.UserApi;
-import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -38,6 +40,12 @@ public class UpStoxAuthController {
 
     @Value("${upstox.redirect-uri}")
     private String redirectUri;
+
+    private final UserDataExpiryService userDataExpiryService;
+
+    public UpStoxAuthController(UserDataExpiryService userDataExpiryService) {
+        this.userDataExpiryService = userDataExpiryService;
+    }
 
     @GetMapping("/login")
     public ResponseEntity<?> initiateLogin(){
@@ -86,13 +94,18 @@ public class UpStoxAuthController {
             String accessToken = tokenResponse.getAccessToken();
             ProfileData userProfile = getUserProfile(accessToken);
 
-            Map<String, Object> response = new HashMap<>();
-            response.put("status", "success");
-            response.put("access_token", accessToken);
-            response.put("token_type", tokenResponse.getAccessToken());
-            response.put("user_profile", userProfile);
+            UserProfile oCurrentUserProfile = new UserProfile();
+            oCurrentUserProfile.setUserId(userProfile.getUserId());
+            oCurrentUserProfile.setAccessToken(accessToken);
+            oCurrentUserProfile.setStatus("Active");
+            oCurrentUserProfile.setEmail(userProfile.getEmail());
+            oCurrentUserProfile.setUserName(userProfile.getUserName());
+            oCurrentUserProfile.setBroker(userProfile.getBroker());
+            oCurrentUserProfile.setExpiryTime(userDataExpiryService.calculateExpiryTime());
+            oCurrentUserProfile.setCreatedAt(LocalDateTime.now());
+            userDataExpiryService.StoreUserAccessToken(oCurrentUserProfile);
 
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(oCurrentUserProfile);
 
         } catch (ApiException e) {
             System.err.println("API Exception: " + e.getResponseBody());

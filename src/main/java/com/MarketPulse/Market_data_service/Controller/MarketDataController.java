@@ -1,20 +1,215 @@
 package com.MarketPulse.Market_data_service.Controller;
 
-import com.MarketPulse.Market_data_service.Service.UpstoxApiService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.MarketPulse.Market_data_service.Models.InstrumentData;
+import com.MarketPulse.Market_data_service.Service.MarketDataService;
+import com.upstox.api.GetMarketQuoteOHLCResponseV3;
+import com.upstox.api.MarketQuoteOHLCV3;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.Instant;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @RestController
-@RequestMapping("/api/v1")
+@RequestMapping("/api/company")
 public class MarketDataController {
-    private static final Logger logger = LoggerFactory.getLogger(MarketDataController.class);
-    private final UpstoxApiService upstoxApiService;
 
-    public MarketDataController(UpstoxApiService upstoxApiService){
-        this.upstoxApiService = upstoxApiService;
+    private final MarketDataService marketDataService;
+
+    public MarketDataController(MarketDataService marketDataService){
+        this.marketDataService = marketDataService;
+    }
+
+    /**
+     * Get OHLC data by symbol (most common usage)
+     */
+    @GetMapping("/{userId}/ohlc")
+    public ResponseEntity<MarketQuoteOHLCV3> getOHLCBySymbol(
+            @PathVariable String userId,
+            @RequestParam String symbol,
+            @RequestParam(defaultValue = "NSE") String exchange,
+            @RequestParam(defaultValue = "1d") String interval) {
+
+        try {
+            MarketQuoteOHLCV3 response = marketDataService.getOHLCBySymbol(userId, exchange, symbol, interval);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error fetching OHLC for symbol: {} - {}", symbol, e.getMessage());
+            return ResponseEntity.status(500).body(null);
+        }
+    }
+
+    /**
+     * Get OHLC data by company name (fuzzy search)
+     */
+    @GetMapping("/{userId}/company")
+    public ResponseEntity<GetMarketQuoteOHLCResponseV3> getOHLCByCompanyName(
+            @PathVariable String userId,
+            @RequestParam String companyName,
+            @RequestParam(defaultValue = "NSE") String exchange,
+            @RequestParam(defaultValue = "1d") String interval) {
+
+        try {
+            GetMarketQuoteOHLCResponseV3 response = marketDataService.getOHLCByCompanyName(
+                    userId, exchange, companyName, interval);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error fetching OHLC for company: {} - {}", companyName, e.getMessage());
+            return ResponseEntity.status(500).body(null);
+        }
+    }
+
+    /**
+     * Get OHLC data for multiple symbols
+     */
+    @PostMapping("/{userId}/symbols")
+    public ResponseEntity<GetMarketQuoteOHLCResponseV3> getOHLCBySymbols(
+            @PathVariable String userId,
+            @RequestParam List<String> symbols,
+            @RequestParam(defaultValue = "NSE") String exchange,
+            @RequestParam(defaultValue = "1d") String interval) {
+
+        try {
+            GetMarketQuoteOHLCResponseV3 response = marketDataService.getOHLCBySymbols(
+                    userId, exchange, symbols, interval);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error fetching OHLC for symbols: {} - {}", symbols, e.getMessage());
+            return ResponseEntity.status(500).body(null);
+        }
+    }
+
+    /**
+     * Get indices OHLC data
+     */
+    @GetMapping("/{userId}/indices")
+    public ResponseEntity<GetMarketQuoteOHLCResponseV3> getIndicesOHLC(
+            @PathVariable String userId,
+            @RequestParam(defaultValue = "1d") String interval) {
+
+        try {
+            GetMarketQuoteOHLCResponseV3 response = marketDataService.getIndicesOHLC(userId, interval);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error fetching indices OHLC - {}", e.getMessage());
+            return ResponseEntity.status(500).body(null);
+        }
+    }
+
+    /**
+     * Get Nifty 50 stocks OHLC
+     */
+    @GetMapping("/{userId}/nifty50")
+    public ResponseEntity<GetMarketQuoteOHLCResponseV3> getNifty50OHLC(
+            @PathVariable String userId,
+            @RequestParam(defaultValue = "1d") String interval) {
+
+        try {
+            GetMarketQuoteOHLCResponseV3 response = marketDataService.getNifty50OHLC(userId, interval);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error fetching Nifty 50 OHLC - {}", e.getMessage());
+            return ResponseEntity.status(500).body(null);
+        }
+    }
+
+    /**
+     * Search companies/instruments
+     */
+    @GetMapping("/{userId}/search")
+    public ResponseEntity<List<InstrumentData>> searchInstruments(
+            @PathVariable String userId,
+            @RequestParam String query,
+            @RequestParam(defaultValue = "NSE") String exchange,
+            @RequestParam(defaultValue = "10") int maxResults) {
+
+        try {
+            List<InstrumentData> results = marketDataService.searchInstruments(exchange, query, maxResults);
+            return ResponseEntity.ok(results);
+        } catch (Exception e) {
+            log.error("Error searching instruments with query: {} - {}", query, e.getMessage());
+            return ResponseEntity.status(500).body(null);
+        }
+    }
+
+    /**
+     * Get instrument key by symbol
+     */
+    @GetMapping("/instrument-key")
+    public ResponseEntity<Map<String, String>> getInstrumentKey(
+            @RequestParam String symbol,
+            @RequestParam(defaultValue = "NSE") String exchange) {
+
+        try {
+            String instrumentKey = marketDataService.getInstrumentKeyBySymbol(exchange, symbol);
+
+            Map<String, String> response = new HashMap<>();
+            response.put("symbol", symbol);
+            response.put("exchange", exchange);
+            response.put("instrumentKey", instrumentKey);
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error getting instrument key for: {} - {}", symbol, e.getMessage());
+            return ResponseEntity.status(404).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Validate symbol
+     */
+    @GetMapping("/validate")
+    public ResponseEntity<Map<String, Object>> validateSymbol(
+            @RequestParam String symbol,
+            @RequestParam(defaultValue = "NSE") String exchange) {
+
+        boolean isValid = marketDataService.isValidSymbol(exchange, symbol);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("symbol", symbol);
+        response.put("exchange", exchange);
+        response.put("isValid", isValid);
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Get cache statistics
+     */
+    @GetMapping("/cache/stats")
+    public ResponseEntity<Map<String, Object>> getCacheStats() {
+        try {
+            Map<String, Object> stats = marketDataService.getCacheStatistics();
+            return ResponseEntity.ok(stats);
+        } catch (Exception e) {
+            log.error("Error getting cache stats - {}", e.getMessage());
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    // ========== Quick Access Endpoints ==========
+
+    @GetMapping("/{userId}/reliance")
+    public ResponseEntity<MarketQuoteOHLCV3> getRelianceOHLC(
+            @PathVariable String userId,
+            @RequestParam(defaultValue = "1d") String interval) {
+        return getOHLCBySymbol(userId, "RELIANCE", "NSE", interval);
+    }
+
+    @GetMapping("/{userId}/hdfc")
+    public ResponseEntity<MarketQuoteOHLCV3> getHDFCOHLC(
+            @PathVariable String userId,
+            @RequestParam(defaultValue = "1d") String interval) {
+        return getOHLCBySymbol(userId, "HDFCBANK", "NSE", interval);
+    }
+
+    @GetMapping("/{userId}/tcs")
+    public ResponseEntity<MarketQuoteOHLCV3> getTCSOHLC(
+            @PathVariable String userId,
+            @RequestParam(defaultValue = "1d") String interval) {
+        return getOHLCBySymbol(userId, "TCS", "NSE", interval);
     }
 }
