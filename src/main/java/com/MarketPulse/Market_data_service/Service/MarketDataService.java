@@ -1,6 +1,7 @@
 package com.MarketPulse.Market_data_service.Service;
 
 import com.MarketPulse.Market_data_service.Entity.UserProfile;
+import com.MarketPulse.Market_data_service.Models.CandleData;
 import com.MarketPulse.Market_data_service.Models.InstrumentData;
 import com.MarketPulse.Market_data_service.Repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -245,9 +246,25 @@ public class MarketDataService {
     }
 
     /**
+     * Parse historical candle response into structured data
+     */
+    public List<CandleData> parseHistoricalCandles(GetHistoricalCandleResponse response){
+
+        List<CandleData> candleData = new ArrayList<>();
+        if(Objects.nonNull(response.getData()) && Objects.nonNull(response.getData().getCandles())){
+            for(List<Object> candleArray : response.getData().getCandles()){
+                CandleData candle = CandleData.fromArray(candleArray.toArray());
+                candleData.add(candle);
+            }
+        }
+        return candleData;
+
+    }
+
+    /**
      * CORRECTED: Get historical candle data with both fromDate and toDate
      */
-    public GetHistoricalCandleResponse getHistoricalCandleData(String userId, String instrumentKey,
+    public List<CandleData> getHistoricalCandleData(String userId, String instrumentKey,
                                                                String unit, Integer interval,
                                                                String fromDate, String toDate) {
         try {
@@ -262,7 +279,7 @@ public class MarketDataService {
             log.info("Retrieved historical candle data for instrument: {}, unit: {}, interval: {}, from: {}, to: {}",
                     instrumentKey, unit, interval, fromDate, toDate);
 
-            return response;
+            return parseHistoricalCandles(response);
 
         } catch (ApiException e) {
             log.error("Upstox API error for historical data: {}", e.getResponseBody(), e);
@@ -276,8 +293,8 @@ public class MarketDataService {
     /**
      * Get historical data for today (intraday)
      */
-    public GetHistoricalCandleResponse getHistoricalDataToday(String userId, String instrumentKey,
-                                                              String unit, Integer interval) {
+    public List<CandleData> getHistoricalDataToday(String userId, String instrumentKey,
+                                                   String unit, Integer interval) {
         LocalDate today = LocalDate.now();
         String todayStr = today.toString(); // YYYY-MM-DD format
 
@@ -287,8 +304,8 @@ public class MarketDataService {
     /**
      * Get historical data for last N days
      */
-    public GetHistoricalCandleResponse getHistoricalDataLastNDays(String userId, String instrumentKey,
-                                                                  int days, String unit, Integer interval) {
+    public List<CandleData> getHistoricalDataLastNDays(String userId, String instrumentKey,
+                                                       int days, String unit, Integer interval) {
         LocalDate toDate = LocalDate.now();
         LocalDate fromDate = toDate.minusDays(days);
 

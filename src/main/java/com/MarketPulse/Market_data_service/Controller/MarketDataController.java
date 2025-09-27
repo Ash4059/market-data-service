@@ -1,5 +1,6 @@
 package com.MarketPulse.Market_data_service.Controller;
 
+import com.MarketPulse.Market_data_service.Models.CandleData;
 import com.MarketPulse.Market_data_service.Models.InstrumentData;
 import com.MarketPulse.Market_data_service.Service.MarketDataService;
 import com.upstox.api.GetHistoricalCandleResponse;
@@ -48,7 +49,7 @@ public class MarketDataController {
      * Get historical candle data with custom parameters
      */
     @GetMapping("/{userId}/historical/candles")
-    public ResponseEntity<GetHistoricalCandleResponse> getHistoricalCandleData(
+    public ResponseEntity<?> getHistoricalCandleData(
             @PathVariable String userId,
             @RequestParam String symbol,
             @RequestParam(defaultValue = "NSE") String exchange,
@@ -59,7 +60,7 @@ public class MarketDataController {
 
         try {
             String instrumentKey = marketDataService.getInstrumentKeyBySymbol(exchange, symbol);
-            GetHistoricalCandleResponse response = marketDataService.getHistoricalCandleData(
+            List<CandleData> response = marketDataService.getHistoricalCandleData(
                     userId, instrumentKey, unit, interval, fromDate, toDate);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
@@ -72,7 +73,7 @@ public class MarketDataController {
      * Get intraday data for today (simplified)
      */
     @GetMapping("/{userId}/historical/today")
-    public ResponseEntity<GetHistoricalCandleResponse> getHistoricalDataToday(
+    public ResponseEntity<?> getHistoricalDataToday(
             @PathVariable String userId,
             @RequestParam String symbol,
             @RequestParam(defaultValue = "NSE") String exchange,
@@ -81,7 +82,8 @@ public class MarketDataController {
 
         try {
             String instrumentKey = marketDataService.getInstrumentKeyBySymbol(exchange, symbol);
-            GetHistoricalCandleResponse response = marketDataService.getHistoricalDataToday(
+
+            List<CandleData> response = marketDataService.getHistoricalDataToday(
                     userId, instrumentKey, unit, interval);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
