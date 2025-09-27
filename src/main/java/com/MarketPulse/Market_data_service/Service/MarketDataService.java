@@ -7,9 +7,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.upstox.ApiClient;
 import com.upstox.ApiException;
 import com.upstox.Configuration;
+import com.upstox.api.GetHistoricalCandleResponse;
 import com.upstox.api.GetMarketQuoteOHLCResponseV3;
 import com.upstox.api.MarketQuoteOHLCV3;
 import com.upstox.auth.OAuth;
+
+import io.swagger.client.api.HistoryV3Api;
 import io.swagger.client.api.MarketQuoteV3Api;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
@@ -20,6 +23,7 @@ import jakarta.annotation.PostConstruct;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -238,6 +242,58 @@ public class MarketDataService {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    /**
+     * CORRECTED: Get historical candle data with both fromDate and toDate
+     */
+    public GetHistoricalCandleResponse getHistoricalCandleData(String userId, String instrumentKey,
+                                                               String unit, Integer interval,
+                                                               String fromDate, String toDate) {
+        try {
+            configAPIClient(userId);
+
+            HistoryV3Api historyApi = new HistoryV3Api();
+
+            // The actual API signature likely requires both dates
+            GetHistoricalCandleResponse response = historyApi.getHistoricalCandleData1(
+                    instrumentKey, unit, interval, toDate, fromDate);
+
+            log.info("Retrieved historical candle data for instrument: {}, unit: {}, interval: {}, from: {}, to: {}",
+                    instrumentKey, unit, interval, fromDate, toDate);
+
+            return response;
+
+        } catch (ApiException e) {
+            log.error("Upstox API error for historical data: {}", e.getResponseBody(), e);
+            throw new RuntimeException("Failed to fetch historical data: " + e.getResponseBody(), e);
+        } catch (Exception e) {
+            log.error("Error fetching historical candle data", e);
+            throw new RuntimeException("Failed to fetch historical data: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Get historical data for today (intraday)
+     */
+    public GetHistoricalCandleResponse getHistoricalDataToday(String userId, String instrumentKey,
+                                                              String unit, Integer interval) {
+        LocalDate today = LocalDate.now();
+        String todayStr = today.toString(); // YYYY-MM-DD format
+
+        return getHistoricalCandleData(userId, instrumentKey, unit, interval, todayStr, todayStr);
+    }
+
+    /**
+     * Get historical data for last N days
+     */
+    public GetHistoricalCandleResponse getHistoricalDataLastNDays(String userId, String instrumentKey,
+                                                                  int days, String unit, Integer interval) {
+        LocalDate toDate = LocalDate.now();
+        LocalDate fromDate = toDate.minusDays(days);
+
+        return getHistoricalCandleData(userId, instrumentKey, unit, interval,
+                fromDate.toString(), toDate.toString());
     }
 
     // ========== PRIVATE HELPER METHODS ==========

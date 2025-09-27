@@ -2,9 +2,11 @@ package com.MarketPulse.Market_data_service.Controller;
 
 import com.MarketPulse.Market_data_service.Models.InstrumentData;
 import com.MarketPulse.Market_data_service.Service.MarketDataService;
+import com.upstox.api.GetHistoricalCandleResponse;
 import com.upstox.api.GetMarketQuoteOHLCResponseV3;
 import com.upstox.api.MarketQuoteOHLCV3;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -43,21 +45,47 @@ public class MarketDataController {
     }
 
     /**
-     * Get OHLC data by company name (fuzzy search)
+     * Get historical candle data with custom parameters
      */
-    @GetMapping("/{userId}/company")
-    public ResponseEntity<GetMarketQuoteOHLCResponseV3> getOHLCByCompanyName(
+    @GetMapping("/{userId}/historical/candles")
+    public ResponseEntity<GetHistoricalCandleResponse> getHistoricalCandleData(
             @PathVariable String userId,
-            @RequestParam String companyName,
+            @RequestParam String symbol,
             @RequestParam(defaultValue = "NSE") String exchange,
-            @RequestParam(defaultValue = "1d") String interval) {
+            @RequestParam String unit,           // "minute", "day"
+            @RequestParam Integer interval,      // 1, 5, 15, 30, 60
+            @RequestParam String fromDate,       // YYYY-MM-DD format
+            @RequestParam String toDate) {       // YYYY-MM-DD format
 
         try {
-            GetMarketQuoteOHLCResponseV3 response = marketDataService.getOHLCByCompanyName(
-                    userId, exchange, companyName, interval);
+            String instrumentKey = marketDataService.getInstrumentKeyBySymbol(exchange, symbol);
+            GetHistoricalCandleResponse response = marketDataService.getHistoricalCandleData(
+                    userId, instrumentKey, unit, interval, fromDate, toDate);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            log.error("Error fetching OHLC for company: {} - {}", companyName, e.getMessage());
+            log.error("Error fetching historical candle data for: {} - {}", symbol, e.getMessage());
+            return ResponseEntity.status(500).body(null);
+        }
+    }
+
+    /**
+     * Get intraday data for today (simplified)
+     */
+    @GetMapping("/{userId}/historical/today")
+    public ResponseEntity<GetHistoricalCandleResponse> getHistoricalDataToday(
+            @PathVariable String userId,
+            @RequestParam String symbol,
+            @RequestParam(defaultValue = "NSE") String exchange,
+            @RequestParam(defaultValue = "minutes") String unit,
+            @RequestParam(defaultValue = "5") Integer interval) {
+
+        try {
+            String instrumentKey = marketDataService.getInstrumentKeyBySymbol(exchange, symbol);
+            GetHistoricalCandleResponse response = marketDataService.getHistoricalDataToday(
+                    userId, instrumentKey, unit, interval);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error fetching today's historical data for: {} - {}", symbol, e.getMessage());
             return ResponseEntity.status(500).body(null);
         }
     }
