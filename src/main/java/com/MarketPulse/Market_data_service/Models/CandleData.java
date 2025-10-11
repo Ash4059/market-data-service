@@ -29,7 +29,8 @@ public class CandleData {
                 .high(((Number)candleArray[2]).doubleValue())
                 .low(((Number)candleArray[3]).doubleValue())
                 .close(((Number)candleArray[4]).doubleValue())
-                .openInterst(((Number)candleArray[5]).doubleValue())
+                .volume(((Number)candleArray[5]).doubleValue())
+                .openInterst(((Number)candleArray[6]).doubleValue())
                 .build();
     }
 
