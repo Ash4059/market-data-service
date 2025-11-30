@@ -3,11 +3,9 @@ package com.MarketPulse.Market_data_service.Controller;
 import com.MarketPulse.Market_data_service.Models.CandleData;
 import com.MarketPulse.Market_data_service.Models.InstrumentData;
 import com.MarketPulse.Market_data_service.Service.MarketDataService;
-import com.upstox.api.GetHistoricalCandleResponse;
 import com.upstox.api.GetMarketQuoteOHLCResponseV3;
 import com.upstox.api.MarketQuoteOHLCV3;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -53,7 +51,7 @@ public class MarketDataController {
             @PathVariable String userId,
             @RequestParam String symbol,
             @RequestParam(defaultValue = "NSE") String exchange,
-            @RequestParam String unit,           // "minute", "day"
+            @RequestParam String unit,           // "minutes", "days"
             @RequestParam Integer interval,      // 1, 5, 15, 30, 60
             @RequestParam String fromDate,       // YYYY-MM-DD format
             @RequestParam String toDate) {       // YYYY-MM-DD format
